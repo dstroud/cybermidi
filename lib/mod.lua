@@ -1,7 +1,7 @@
 local mod = require 'core/mods'
 -- local ip_address = wifi.ip  -- no work
 -- print("DEBUG ip_address = " .. (ip_address or "nil"))
--- local ip_address = "192.168.1.18"
+local ip_address = "192.168.1.18"
 local port = 10111
 local device_id = 17-- todo work on this. was using -1 to set off-limits to scripts
 
@@ -11,10 +11,10 @@ local my_midi = {
 }
 function my_midi:send(data) end
 function my_midi:note_on(note, vel, ch)
-  osc.send({wifi.ip, port}, "/midi_over_osc_note_on", {note, vel, ch})
+  osc.send({ip_address, port}, "/midi_over_osc_note_on", {note, vel, ch})
 end
 function my_midi:note_off(note, vel, ch)
-  osc.send({wifi.ip, port}, "/midi_over_osc_note_off", {note, vel, ch})
+  osc.send({ip_address, port}, "/midi_over_osc_note_off", {note, vel, ch})
 end
 
 -- TODO
@@ -77,30 +77,35 @@ meta_fake_midi.__index = function(t, key)
 	return t.real_midi[key]
 end
 
--- todo: consider breaking into system_post_startup and script_pre_init hooks?
-mod.hook.register("script_pre_init", "midi_over_osc pre init", function()
--- mod.hook.register("system_post_startup", "midi_over_osc pre init", function()
-	-- print("midi over osc mod registered")
-	midi = fake_midi    
-	
-	-- trouble! will be superceded by scripts that define osc.event()
-	-- probably need to redefine _norns.osc.event to address this
-	function osc.event(path,args,from)
-		if type(midi.vports[device_id].event) == "function" then -- necessary?
-		-- print("midi.vports[" .. device_id .. "].event undefined")
-	-- else
-			if path == "/midi_over_osc_note_on" then
-				-- print("osc note_on")
-				midi.vports[device_id].event(midi.to_data({type = "note_on", note = args[1], vel = args[2], ch = args[3]}))
-			elseif path == "/midi_over_osc_note_off" then
-				midi.vports[device_id].event(midi.to_data({type = "note_off", note = args[1], vel = args[2], ch = args[3]}))
-			end
-		end
-	end
+mod.hook.register("script_pre_init", "midi-over-osc pre init", function()
+  midi = fake_midi    
+	local old_init = init
+	init = function()
+	  old_init()
+    old_osc_event = osc.event
+
+  	function osc.event(path, args, from)
+  	  if string.sub(path,1,14) == "/midi_over_osc" then -- check performance vs util.string_starts()
+  	    local msg = string.sub(path,16)
+    		-- todo: find a better way to handle this
+  		  if type(midi.vports[device_id].event) == "function" then
+  		    -- this is only going to work for note_on and note_off
+  		    -- changing from named arguments can help but maybe to_data is altogether unnecessary
+  		    midi.vports[device_id].event(midi.to_data({type = msg, note = args[1], vel = args[2], ch = args[3]}))
+		    end
+	    else
+    		-- todo: find a better way to handle this
+    		if old_osc_event ~= nil then 
+    		  old_osc_event(path, args, from)
+  		  end
+		  end
+  	end
+  	
+  end
 end)
 
+
 mod.hook.register("script_post_cleanup", "midi_over_osc post cleanup", function()
--- mod.hook.register("system_pre_shutdown", "midi_over_osc post cleanup", function()
 	midi = fake_midi.real_midi
-	osc.event = nil
+  osc.event = old_osc_event
 end)
