@@ -9,12 +9,15 @@ local my_midi = {
   name="midi_over_osc",
   connected=true,
 }
+
 function my_midi:send(data) end
+
 function my_midi:note_on(note, vel, ch)
-  osc.send({ip_address, port}, "/midi_over_osc_note_on", {note, vel, ch})
+  osc.send({ip_address, port}, "/midi_over_osc", {"note_on", note, vel or 100, ch or 1})
 end
+
 function my_midi:note_off(note, vel, ch)
-  osc.send({ip_address, port}, "/midi_over_osc_note_off", {note, vel, ch})
+  osc.send({ip_address, port}, "/midi_over_osc", {"note_off", note, vel or 0, ch or 1})
 end
 
 -- TODO
@@ -85,19 +88,13 @@ mod.hook.register("script_pre_init", "midi-over-osc pre init", function()
     old_osc_event = osc.event
 
   	function osc.event(path, args, from)
-  	  if string.sub(path,1,14) == "/midi_over_osc" then -- check performance vs util.string_starts()
-  	    local msg = string.sub(path,16)
-    		-- todo: find a better way to handle this
+  	  if path == "/midi_over_osc" then
   		  if type(midi.vports[device_id].event) == "function" then
   		    -- this is only going to work for note_on and note_off
-  		    -- changing from named arguments can help but maybe to_data is altogether unnecessary
-  		    midi.vports[device_id].event(midi.to_data({type = msg, note = args[1], vel = args[2], ch = args[3]}))
+  		    midi.vports[device_id].event(midi.to_data({type=args[1], note=args[2], vel=args[3], ch=args[4]}))
 		    end
-	    else
-    		-- todo: find a better way to handle this
-    		if old_osc_event ~= nil then 
-    		  old_osc_event(path, args, from)
-  		  end
+	    elseif old_osc_event ~= nil then 
+    	  old_osc_event(path, args, from)
 		  end
   	end
   	
