@@ -10,7 +10,7 @@
 
 
 ### What it is
-This is a Norns mod to send MIDI over the network using OSC.
+This is a Norns mod to send MIDI over IP to LAN devices (or beyond, I suppose).
 
 ### How to use it
 1. Run `;install https://github.com/dstroud/cybermidi` in Maiden.
