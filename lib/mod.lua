@@ -52,16 +52,6 @@ local function get_subnet(ip)
   return lastdot and ip:sub(1, lastdot) or ip
 end
 
-local function get_host_id(ip)
-  local lastdot = ip:match(".*()%.")
-  if lastdot then
-    local id_string = ip:sub(lastdot + 1)
-    return tonumber(id_string)
-  else
-    return nil
-  end
-end
-
 local function ip_to_number(ip_string)
   local padded_seg = {}
   for segment in ip_string:gmatch("(%d+)") do
@@ -79,21 +69,6 @@ local function set_ip(from)
   else -- manual IP
     cybermidi.ip = cybermidi.manual_ip
   end
-end
-  
-local function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
 end
 
 local function init_registries()
@@ -114,8 +89,8 @@ local function reindex_reg()  -- set new registry index after device discovery
 end
 
 -- this is ridiculous but I don't know how else to restore the table JFC
--- will also need to do this for live vport changes
 local function restore_vport(index)
+  -- print("CyberMIDI: Restoring MIDI functions on vport " .. index)
   local vport_path = midi.vports[index]
   function vport_path:note_on(note, vel, ch)
     self:send{type="note_on", note=note, vel=vel, ch=ch or 1}
@@ -159,136 +134,161 @@ local function restore_vport(index)
 end
 
 local function init_vport(index)
+  -- print("CyberMIDI: Redefining MIDI functions on vport " .. index)
   local vport_path = midi.vports[index]
 
+-- Note: currently we redefine each MIDI functions to bypass midi.send. If I could figure out a way to direct them to a redefined version of midi.send it'd be much tidier! 
   function vport_path:note_on(note, vel, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="note_on", note=note, vel=vel, ch=ch}))
   end
-  
   function vport_path:note_off(note, vel, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="note_off", note=note, vel=vel, ch=ch}))
   end
-
   function vport_path:cc(cc, val, ch) -- not passed to system pmap
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="cc", cc=cc, val=val, ch=ch}))
   end
-
   function vport_path:pitchbend(val, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="pitchbend", val=val, ch=ch}))
   end
-
   function vport_path:channel_pressure(val, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="channel_pressure", val=val, ch=ch}))
   end
-  
   function vport_path:key_pressure(note, val, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="key_pressure", note=note, val=val, ch=ch}))
   end
-  
   function vport_path:program_change(val, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="program_change", val=val, ch=ch}))
   end
-
   function vport_path:song_position(lsb, msb)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_position", lsb=lsb, msb=msb}))
   end
-  
   function vport_path:song_select(val)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_select", val=val}))
   end  
     
-  -- Realtime messages aren't processed by system clock on the receiving end. Virtual interface issue? 
-  
+  -- Realtime messages aren't processed by system clock on the receiving end so not much point in redefining them. Likely a virtual interface issue if anyone wants to help look into this.
   -- function vport_path:start()
   --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="start"})) -- 0xfa
   -- end  
-  
   -- function vport_path:stop()
   --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="stop"}))  -- 0xfc
   -- end  
-  
   -- function vport_path:continue()
   --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="continue"})) -- 0xfb
   -- end    
-  
   -- function vport_path:clock()
   --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="clock"})) -- 0xf8
-  -- end  
+  -- end
 end
 
+local function define_osc_event() -- local
+  -- print("CyberMIDI: Redefining osc.event")
+  function osc.event(path, args, from)
+    -- print("CyberMIDI: OSC received")
+		if path == "/cybermidi_msg" then
+		  if midi.vports[cybermidi.vport_index].event ~= nil then  -- Could just live with errors?
+        midi.vports[cybermidi.vport_index].event(args)
+		  end
 
--- todo new script_post_init (requiring norns 231114)
-mod.hook.register("script_pre_init", "cybermidi pre init", function() 
+	  elseif path == "/cybermidi_ping" then
+	    local from = from[1]
+	    print("CyberMIDI: Pinged by " .. from)
+	    
+	    if from ~= wifi.ip then -- don't respond with own IP. Localhost is available
+      	osc.send({from, 10111}, "/cybermidi_reg", {"reg", wifi.ip, get_hostname()})
+	    end
+
+	  elseif path == "/cybermidi_reg" then -- using own IP arg so we can fake IPs for dev purposes
+	    local ip = args[2]
+	    local name = args[3]
+
+      for i = 1, #cybermidi.reg do
+        if ip == cybermidi.reg[i].ip then
+          break
+        elseif i == #cybermidi.reg then
+          table.insert(cybermidi.reg, {ip = ip, name = name})
+          print("CyberMIDI: Destination registered: " .. ip .. " " .. name)
+        end
+      end
+      
+      table.sort(cybermidi.reg, function(a, b)
+        return ip_to_number(a.ip) < ip_to_number(b.ip)
+      end)
+        
+		elseif cybermidi.old_osc_event ~= nil then -- script osc passed through
+			cybermidi.old_osc_event(path, args, from)
+		end
+  end
+end
+
+mod.hook.register("system_post_startup", "cybermidi post startup", function()
   wifi.update() -- addresses intermittent system bug resulting in nil wifi.ip
+  print("CyberMIDI: Local IP " .. wifi.ip)
   cybermidi = {}
   read_prefs()
-  print("CYBERMIDI: Destination IP = " .. cybermidi.lan_ip)
+  print("CyberMIDI: Destination IP " .. cybermidi.lan_ip)
   cybermidi.menu = 1
-  cybermidi.octet_1, cybermidi.octet_2, cybermidi.octet_3, cybermidi.octet_4 = parse_ip(cybermidi.manual_ip)  
-  -- auto-assign virtual interface to a port if needed
-  if midi.devices[1].port == nil then
-    for i = 1, 16 do
-      if midi.vports[i].name == "none" then
-        print("CYBERMIDI: Assigning virtual midi interface to vport " .. i)
-        midi.vports[i].name = "virtual"
-        midi.update_devices()      
-        break
-      elseif i == 16 then
-        print("CYBERMIDI: All vports full! Make room in System>Devices>MIDI then restart")
+  cybermidi.octet_1, cybermidi.octet_2, cybermidi.octet_3, cybermidi.octet_4 = parse_ip(cybermidi.manual_ip)
+
+  -- redefine midi.update_devices so when user changes vports we can redefine/restore functions
+  function midi.update_devices()
+    for _,device in pairs(midi.devices) do
+      device.port = nil
+    end
+    for i=1,16 do
+      midi.vports[i].device = nil
+      for _, device in pairs(midi.devices) do
+        if device.name == midi.vports[i].name then
+          midi.vports[i].device = device
+          device.port = i
+        end
       end
     end
-  else
-    print("CYBERMIDI: Virtual midi interface found at vport " .. midi.devices[1].port)
+    local function locate_vport(name) -- Start of redefinition
+      for i = 1, 16 do
+        if midi.vports[i].name == name then
+          return i
+        elseif i == 16 then
+          return nil
+        end
+      end
+    end
+    local new_vport_index = locate_vport("virtual")
+    local old_vport_index = cybermidi.vport_index
+    if old_vport_index ~= nil and (new_vport_index ~= old_vport_index) then
+      -- print("CyberMIDI: Restoring previous virtual MIDI interface vport " .. old_vport_index)
+      restore_vport(old_vport_index)
+    end
+    if new_vport_index ~= nil then
+      print("CyberMIDI: Virtual MIDI interface is vport " .. new_vport_index)
+      init_vport(new_vport_index)
+    else
+      print("CyberMIDI: Virtual MIDI interface not found; assign in SYSTEM>>DEVICES>>MIDI")
+    end
+    cybermidi.vport_index = new_vport_index -- End of redefinition
+    midi.update_connected_state()
   end
-  
-  -- for now we lock in the vport at mod launch and restore its functions on cleanup
-  -- todo: allow live port switching, which will involve restoring functions and applying them
-  cybermidi.vport_index = midi.devices[1].port
-  init_vport(cybermidi.vport_index)
 
+  -- osc.event is overwritten after mod hook so we're just gonna redefine it
+  function osc.cleanup()
+    osc.event = nil
+    define_osc_event()
+    -- optionally, revert back after first call. Works but may as well leave it in case other mods try to do cleanup (or maybe something script related?)
+    -- function osc.cleanup()
+    --   print("CyberMIDI: reverted OSC.cleanup called")
+    --   osc.event = nil
+    -- end
+  end
+
+end)
+
+-- todo new script_post_init (requiring norns 231114 so no rush)
+mod.hook.register("script_pre_init", "cybermidi pre init", function() 
   local old_init = init
 	init = function()
 		old_init()
 		cybermidi.old_osc_event = osc.event
-		
-		function osc.event(path, args, from)
-			if path == "/cybermidi_msg" then
-			  
-			 -- todo: live check on vport here. would have to move vport midi functions
-			  if midi.vports[cybermidi.vport_index].event ~= nil then  -- Could just live with errors?
-          midi.vports[cybermidi.vport_index].event(args)
-			  end
-			  
-		  elseif path == "/cybermidi_ping" then
-		    local from = from[1]
-		    print("CYBERMIDI: Pinged by " .. from)
-		    
-		    if from ~= wifi.ip then -- don't respond with own IP. Localhost is available
-        osc.send({from, 10111}, "/cybermidi_reg", {"reg", wifi.ip, get_hostname()})
-		    end
-
-		  elseif path == "/cybermidi_reg" then -- using own IP arg so we can fake IPs for dev purposes
-		    local ip = args[2]
-		    local name = args[3]
-
-        for i = 1, #cybermidi.reg do
-          if ip == cybermidi.reg[i].ip then
-            break
-          elseif i == #cybermidi.reg then
-            table.insert(cybermidi.reg, {ip = ip, name = name})
-            print("CYBERMIDI: Destination registered: " .. ip .. " " .. name)
-          end
-        end
-        
-        table.sort(cybermidi.reg, function(a, b)
-          return ip_to_number(a.ip) < ip_to_number(b.ip)
-        end)
-          
-			elseif cybermidi.old_osc_event ~= nil then -- script osc passed through
-				cybermidi.old_osc_event(path, args, from)
-			end
-		end
-  	
+		define_osc_event()
 	end
 
 end)
@@ -296,7 +296,6 @@ end)
 mod.hook.register("script_post_cleanup", "cybermidi post cleanup", function()
   if cybermidi ~= nil then
     osc.event = cybermidi.old_osc_event -- restore og osc.event
-    restore_vport(cybermidi.vport_index)
   end
 end)
 
@@ -347,7 +346,7 @@ function m.redraw()
   screen.clear()
   screen.level(4) -- Row 1: Menu
   screen.move(0,10)
-  screen.text("MODS / CYBERMIDI")
+  screen.text("MODS / CyberMIDI")
   screen.move(0,20)   -- Row 2: Device info
   screen.text(util.trim_string_to_width((wifi.ip or "No IP") .. " " .. get_hostname(), 127))
   screen.level(cybermidi.menu == 1 and 15 or 4)   -- Row 3.A: Destination type
