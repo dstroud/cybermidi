@@ -16,7 +16,7 @@ This is a Norns mod to send MIDI over IP to LAN devices (or beyond, I suppose).
 1. Run `;install https://github.com/dstroud/cybermidi` in Maiden.
 2. Enable the mod in SYSTEM>>MODS>>E3 (+ symbol) and restart.
 3. Configure mod via SYSTEM>>MODS>>CYBERMIDI>>K3.
-4. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices
+4. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices.
 5. `LAN` shows devices on network with the mod. `Manual` allows entering your own IP. Can also loopback to localhost.
 6. Settings are applied immediately (watch out for hanging notes) and persist on reboot.
 7. Enable a "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to send and receive MIDI in your script.
