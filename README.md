@@ -10,18 +10,17 @@
 
 
 ### What it is
-This is a Norns mod to send MIDI notes over the network using OSC. It seems to work okay but I haven't really tested it much so I hope it wasn't a big waste of time.
+This is a Norns mod to send MIDI over the network using OSC.
 
 ### How to use it
 1. Run `;install https://github.com/dstroud/cybermidi` in Maiden.
-2. Enable the mod in SYSTEM>>MODS>>E3 (a + symbol should appear).
-3. Restart and launch a script.
-4. To choose which device to send MIDI to, go to SYSTEM>>MODS>>CYBERMIDI and press K3.
-5. When the `LAN`, setting is selected, use K3 to search for devices on your subnet with the mod installed and a script open.
-6. E2 will change focus so you can browse devices on the network or switch from `LAN` to `Manual` IP mode.
-7. In your script, you'll use the "virtual" port to send and receive MIDI. You can change the vport in SYSTEM>>MIDI>>DEVICES but not when the script is running.
+2. Enable the mod in SYSTEM>>MODS>>E3 (+ symbol) and restart.
+3. Configure mod via SYSTEM>>MODS>>CYBERMIDI>>K3.
+4. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices
+5. `LAN` shows devices on network with the mod. `Manual` allows entering your own IP. Can also loopback to localhost.
+6. Settings are applied immediately (watch out for hanging notes) and persist on reboot.
+7. Enable a "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to send and receive MIDI in your script.
 
 ### Notes:
-- It looks like the system MIDI bits (MIDI clock and CC PMAP) don't respond to the "virtual" MIDI interface. Maybe someone wants to look into this?
--  I've really only tested note on/off but I added everything except for System Real Time messages. You can use Link for sync.
-- Hotswapping vports doesn't work yet. I'll probably fix this at some point but for now just quit the script, change ports, and relaunch.
+- System-level MIDI (MIDI clock and CC PMAP) don't respond to the "virtual" MIDI interface. Maybe someone wants to help look into this? At least you can use Link for sync.
+-  Other than clock (see above), other system-defined types of MIDI should work. I've really only tested note on/off so let me know if you see issues.
