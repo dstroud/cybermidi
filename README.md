@@ -10,17 +10,16 @@
 
 
 ### What it is
-A mod to send MIDI between Norns over IP.
+Mod to send MIDI between Norns over IP.
 
 ### How to use it
-1. Run `;install https://github.com/dstroud/cybermidi` in Maiden.
+1. Install from the Maiden project manager (or `;install https://github.com/dstroud/cybermidi`)
 2. Enable the mod in SYSTEM>>MODS>>E3 (+ symbol) and restart.
-3. Configure mod via SYSTEM>>MODS>>CYBERMIDI>>K3.
-4. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices.
-5. `LAN` shows devices on network with the mod. `Manual` allows entering your own IP. Can also loopback to localhost.
-6. Settings are applied immediately (watch out for hanging notes) and persist on reboot.
+3. Edit mod settings via SYSTEM>>MODS>>CYBERMIDI>>K3. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices.
+4. `LAN` option shows other Norns on your subnet with the mod running. `Manual` allows entering your own IP. You also loopback to localhost.
+6. IP settings are applied immediately (watch out for hanging notes) and persist on reboot.
 7. Enable a "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to send and receive MIDI in your script.
 
-### Notes:
-- System-level MIDI (MIDI clock and CC PMAP) don't respond to the "virtual" MIDI interface. Maybe someone wants to help look into this? At least you can use Link for sync.
--  Other than clock (see above), other system-defined types of MIDI should work. I've really only tested note on/off so let me know if you see issues.
+### Misc to-do/roadmap stuff:
+- Norns' MIDI clocking and CC PMAP functionality does not seem to work with the virtual MIDI interface. We can send and receive those messages but the system ignores them. I don't know if this is intentional or an oversight but I'd appreciate it if anyone who knows what they are doing (i.e. not me) can take a look at this. You can sync with Link clock source, however.
+- Other than clock, which I've not implemented (due to the above issue), other system-defined MIDI functions should work. I've really only tested with MIDI notes and CC so let me know if you find any issues.
