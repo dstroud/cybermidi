@@ -137,7 +137,8 @@ local function init_vport(index)
   -- print("CyberMIDI: Redefining MIDI functions on vport " .. index)
   local vport_path = midi.vports[index]
 
--- Note: currently we redefine each MIDI functions to bypass midi.send. If I could figure out a way to direct them to a redefined version of midi.send it'd be much tidier! 
+-- Note: currently we redefine each MIDI functions to bypass midi.send. 
+-- If I could figure out a way to direct them to a redefined version of midi.send it'd be much tidier! 
   function vport_path:note_on(note, vel, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="note_on", note=note, vel=vel, ch=ch}))
   end
@@ -159,26 +160,24 @@ local function init_vport(index)
   function vport_path:program_change(val, ch)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="program_change", val=val, ch=ch}))
   end
+  function vport_path:start()
+    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfa}) -- midi.to_data({type="start"}) -- not passed to system clock
+  end
+  function vport_path:stop()
+    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfc}) -- midi.to_data({type="stop"}) -- not passed to system clock
+  end
+  function vport_path:continue()
+    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfb}) -- midi.to_data({type="continue"}) -- not passed to system clock
+  end
+  function vport_path:clock()
+    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xf8}) -- midi.to_data({type="clock"}) -- not passed to system clock
+  end
   function vport_path:song_position(lsb, msb)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_position", lsb=lsb, msb=msb}))
   end
   function vport_path:song_select(val)
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_select", val=val}))
-  end  
-    
-  -- Realtime messages aren't processed by system clock on the receiving end so not much point in redefining them. Likely a virtual interface issue if anyone wants to help look into this.
-  -- function vport_path:start()
-  --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="start"})) -- 0xfa
-  -- end  
-  -- function vport_path:stop()
-  --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="stop"}))  -- 0xfc
-  -- end  
-  -- function vport_path:continue()
-  --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="continue"})) -- 0xfb
-  -- end    
-  -- function vport_path:clock()
-  --   osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="clock"})) -- 0xf8
-  -- end
+  end
 end
 
 local function define_osc_event() -- local
