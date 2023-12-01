@@ -16,10 +16,10 @@ A mod to send MIDI between Norns over IP.
 1. Install from the Maiden project manager (or `;install https://github.com/dstroud/cybermidi`)
 2. Enable the mod in SYSTEM>>MODS>>E3 (+ symbol) and restart.
 3. Edit mod settings via SYSTEM>>MODS>>CYBERMIDI>>K3. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices.
-4. `LAN` option shows other mod-enabled Norns on your subnet. `Manual` allows entering your own IP. You also loopback to localhost.
+4. The `LAN` option shows other Norns on your subnet running CyberMIDI and `Manual` allows entering your own IP. You can loop MIDI back using localhost IP 127.0.1.1.
 5. IP settings are applied immediately (watch out for hanging notes if you are sending MIDI) and persist on reboot.
 6. Enable a "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to send and receive MIDI in your script.
 
 ### Misc to-do/roadmap stuff:
-- Norns' MIDI clocking and CC PMAP functionality does not seem to work with the virtual MIDI interface. We can send and receive those messages but the system ignores them. I don't know if this is intentional or an oversight but I'd appreciate it if anyone who knows what they are doing (i.e. not me) can take a look at this. You can sync with Link clock source, however.
-- Other than clock, which I've not implemented (due to the above issue), other system-defined MIDI functions should work. I've really only tested with MIDI notes and CC so let me know if you find any issues.
+- Norns' MIDI clocking and CC PMAP functionality does not seem to work with the virtual MIDI interface. We can send and receive those messages but the system ignores them. I don't know if this is intentional or an oversight but I'd appreciate it if anyone who knows what they are doing (i.e. not me) can take a look at [the issue](https://github.com/monome/norns/issues/1744#issuecomment-1836769194). You can sync with Link clock source, however.
+- Other [MIDI functions](https://monome.org/docs/norns/reference/midi) should work but I've really only tested MIDI notes and CC so let me know if you find any issues.
