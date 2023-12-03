@@ -22,7 +22,6 @@ local function read_prefs()
 end
   
 local function write_prefs(from)
-  local filepath = "/home/we/dust/data/cybermidi/"
   local prefs = {}
   if util.file_exists(filepath) == false then
     util.make_dir(filepath)
@@ -345,7 +344,7 @@ function m.redraw()
   screen.clear()
   screen.level(4) -- Row 1: Menu
   screen.move(0,10)
-  screen.text("MODS / CyberMIDI")
+  screen.text("MODS / CYBERMIDI")
   screen.move(0,20)   -- Row 2: Device info
   screen.text(util.trim_string_to_width((wifi.ip or "No IP") .. " " .. get_hostname(), 127))
   screen.level(cybermidi.menu == 1 and 15 or 4)   -- Row 3.A: Destination type
