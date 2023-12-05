@@ -1,8 +1,12 @@
+-- mod for sending MIDI over IP
+-- https://github.com/dstroud/cybermidi
+
 local mod = require 'core/mods'
 local filepath = "/home/we/dust/data/cybermidi/"
+local cybermidi = {}
 
 local function read_prefs()
-  prefs = {}
+  local prefs = {}
   if util.file_exists(filepath.."prefs.data") then
     prefs = tab.load(filepath.."prefs.data")
     print('table >> read: ' .. filepath.."prefs.data")
@@ -222,7 +226,6 @@ end
 mod.hook.register("system_post_startup", "cybermidi post startup", function()
   wifi.update() -- addresses intermittent system bug resulting in nil wifi.ip
   print("CyberMIDI: Local IP " .. wifi.ip)
-  cybermidi = {}
   read_prefs()
   print("CyberMIDI: Destination IP " .. cybermidi.lan_ip)
   cybermidi.menu = 1
