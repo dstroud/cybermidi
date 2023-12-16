@@ -14,11 +14,11 @@ A mod to send MIDI between Norns over IP.
 
 ### How to use it
 1. Install from the Maiden project manager (or `;install https://github.com/dstroud/cybermidi`)
-2. Enable the mod in SYSTEM>>MODS>>E3 (+ symbol) and restart.
+2. Enable the mod *on both the sending and receiving units* in SYSTEM>>MODS>>E3 (+ symbol) and restart.
 3. Edit mod settings via SYSTEM>>MODS>>CYBERMIDI>>K3. Use E2 to navigate and E3 to change values. K3 refreshes LAN devices.
 4. The `LAN` option shows other Norns on your subnet running CyberMIDI and `Manual` allows entering your own IP. You can loop MIDI back using localhost IP 127.0.1.1.
 5. IP settings are applied immediately (watch out for hanging notes if you are sending MIDI) and persist on reboot.
-6. Enable a "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to send and receive MIDI in your script.
+6. Add the "virtual" MIDI port in SYSTEM>>DEVICES>>MIDI. Use this to both send and receive MIDI in your script.
 
 ### Misc to-do/roadmap stuff:
 - Norns' MIDI clocking and CC PMAP functionality does not seem to work with the virtual MIDI interface. We can send and receive those messages but the system ignores them. I don't know if this is intentional or an oversight but I'd appreciate it if anyone who knows what they are doing (i.e. not me) can take a look at [the issue](https://github.com/monome/norns/issues/1744#issuecomment-1836769194). You can sync with Link clock source, however.
