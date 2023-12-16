@@ -12,6 +12,10 @@
 ### What it is
 A mod to send MIDI between Norns over IP.
 
+### Requirements
+
+2 Norns-class cyberdecks running update 201023 or later
+
 ### How to use it
 1. Install from the Maiden project manager (or `;install https://github.com/dstroud/cybermidi`)
 2. Enable the mod *on both the sending and receiving units* in SYSTEM>>MODS>>E3 (+ symbol) and restart.
