@@ -136,49 +136,62 @@ local function restore_vport(index)
   end
 end
 
+-- todo use metatable for this
 local function init_vport(index)
   -- print("CyberMIDI: Redefining MIDI functions on vport " .. index)
   local vport_path = midi.vports[index]
 
--- Note: currently we redefine each MIDI functions to bypass midi.send. 
--- If I could figure out a way to direct them to a redefined version of midi.send it'd be much tidier! 
-  function vport_path:note_on(note, vel, ch)
+-- Should probably use metatable or route to a function that sends to both real and osc functions
+function vport_path:note_on(note, vel, ch)
+    self:send{type="note_on", note=note, vel=vel, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="note_on", note=note, vel=vel, ch=ch}))
   end
   function vport_path:note_off(note, vel, ch)
+    self:send{type="note_off", note=note, vel=vel or 100, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="note_off", note=note, vel=vel, ch=ch}))
   end
   function vport_path:cc(cc, val, ch) -- not passed to system pmap
+    self:send{type="cc", cc=cc, val=val, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="cc", cc=cc, val=val, ch=ch}))
   end
   function vport_path:pitchbend(val, ch)
+    self:send{type="pitchbend", val=val, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="pitchbend", val=val, ch=ch}))
   end
-  function vport_path:channel_pressure(val, ch)
-    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="channel_pressure", val=val, ch=ch}))
-  end
   function vport_path:key_pressure(note, val, ch)
+    self:send{type="key_pressure", note=note, val=val, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="key_pressure", note=note, val=val, ch=ch}))
   end
+  function vport_path:channel_pressure(val, ch)
+    self:send{type="channel_pressure", val=val, ch=ch or 1}
+    osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="channel_pressure", val=val, ch=ch}))
+  end
   function vport_path:program_change(val, ch)
+    self:send{type="program_change", val=val, ch=ch or 1}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="program_change", val=val, ch=ch}))
   end
   function vport_path:start()
+    self:send{type="start"}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfa}) -- midi.to_data({type="start"}) -- not passed to system clock
   end
   function vport_path:stop()
+    self:send{type="stop"}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfc}) -- midi.to_data({type="stop"}) -- not passed to system clock
   end
   function vport_path:continue()
+    self:send{type="continue"}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xfb}) -- midi.to_data({type="continue"}) -- not passed to system clock
   end
   function vport_path:clock()
+    self:send{type="clock"}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", {0xf8}) -- midi.to_data({type="clock"}) -- not passed to system clock
   end
   function vport_path:song_position(lsb, msb)
+    self:send{type="song_position", lsb=lsb, msb=msb}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_position", lsb=lsb, msb=msb}))
   end
   function vport_path:song_select(val)
+    self:send{type="song_select", val=val}
     osc.send({cybermidi.ip, 10111}, "/cybermidi_msg", midi.to_data({type="song_select", val=val}))
   end
 end
@@ -344,24 +357,33 @@ function m.enc(n, d)
 end
 
 function m.redraw()
+  local text = function(fn, x, y, string)
+    screen.move(x, y)
+    screen[fn](string)
+  end  
   screen.clear()
-  screen.level(4) -- Row 1: Menu
-  screen.move(0,10)
-  screen.text("MODS / CYBERMIDI")
-  screen.move(0,20)   -- Row 2: Device info
-  screen.text(util.trim_string_to_width((wifi.ip or "No IP") .. " " .. get_hostname(), 127))
+  screen.level(4)
+  -- Row 1: Menu
+  text("text", 0, 10, "MODS / CYBERMIDI")
+  
+  -- Row 2: Device info
+  text("text", 0, 20, util.trim_string_to_width((wifi.ip or "No IP") .. " " .. get_hostname(), 127))
   screen.level(cybermidi.menu == 1 and 15 or 4)   -- Row 3.A: Destination type
-  screen.move(0, 40)
-  screen.text(cybermidi.destination_type)
-  screen.text(" ")
-  screen.level(cybermidi.menu > 1 and 15 or 4)  -- Row 3.B: IP selector
-  if cybermidi.destination_type == "LAN" then 
+  text("text", 0, 40, "Connection")
+  text("text_right", 127, 40, cybermidi.destination_type)
+
+  -- Row 3: IP selector
+  screen.level(cybermidi.menu > 1 and 15 or 4)
+  if cybermidi.destination_type == "LAN" then
     if cybermidi.state == "discovery" then
-      screen.text("SEARCHING...")  
+      text("text_right", 127, 50, "...SEARCHING")
     else
-      screen.text(util.trim_string_to_width(cybermidi.reg[cybermidi.reg_index].ip .. " " .. cybermidi.reg[cybermidi.reg_index].name, 110))
+      text("text", 0, 50, cybermidi.reg_index .. "/" .. #cybermidi.reg)
+      text("text_right", 127, 50, util.trim_string_to_width(cybermidi.reg[cybermidi.reg_index].ip .. " " .. cybermidi.reg[cybermidi.reg_index].name, 110))
     end
   else -- IP
+    text("text", 0, 50, "IP ")
+    screen.move(127 - screen.text_extents(cybermidi.manual_ip), 50)
     for i = 1, 4 do
       screen.level(cybermidi.menu == 1 and 4 or (cybermidi.menu - 1) == i and 15 or 4)
       screen.text(cybermidi["octet_" .. i])
