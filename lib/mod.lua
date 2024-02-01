@@ -200,22 +200,22 @@ local function define_osc_event() -- local
   -- print("CyberMIDI: Redefining osc.event")
   function osc.event(path, args, from)
     -- print("CyberMIDI: OSC received")
-		if path == "/cybermidi_msg" then
-		  if midi.vports[cybermidi.vport_index].event ~= nil then  -- Could just live with errors?
+    if path == "/cybermidi_msg" then
+      if midi.vports[cybermidi.vport_index].event ~= nil then  -- Could just live with errors?
         midi.vports[cybermidi.vport_index].event(args)
-		  end
+      end
 
-	  elseif path == "/cybermidi_ping" then
-	    local from = from[1]
-	    print("CyberMIDI: Pinged by " .. from)
-	    
-	    if from ~= wifi.ip then -- don't respond with own IP. Localhost is available
-      	osc.send({from, 10111}, "/cybermidi_reg", {"reg", wifi.ip, get_hostname()})
-	    end
+    elseif path == "/cybermidi_ping" then
+      local from = from[1]
+      print("CyberMIDI: Pinged by " .. from)
+      
+      if from ~= wifi.ip then -- don't respond with own IP. Localhost is available
+        osc.send({from, 10111}, "/cybermidi_reg", {"reg", wifi.ip, get_hostname()})
+      end
 
-	  elseif path == "/cybermidi_reg" then -- using own IP arg so we can fake IPs for dev purposes
-	    local ip = args[2]
-	    local name = args[3]
+    elseif path == "/cybermidi_reg" then -- using own IP arg so we can fake IPs for dev purposes
+      local ip = args[2]
+      local name = args[3]
 
       for i = 1, #cybermidi.reg do
         if ip == cybermidi.reg[i].ip then
@@ -230,9 +230,9 @@ local function define_osc_event() -- local
         return ip_to_number(a.ip) < ip_to_number(b.ip)
       end)
         
-		elseif cybermidi.old_osc_event ~= nil then -- script osc passed through
-			cybermidi.old_osc_event(path, args, from)
-		end
+    elseif cybermidi.old_osc_event ~= nil then -- script osc passed through
+      cybermidi.old_osc_event(path, args, from)
+    end
   end
 end
 
@@ -299,11 +299,11 @@ end)
 -- todo new script_post_init (requiring norns 231114 so no rush)
 mod.hook.register("script_pre_init", "cybermidi pre init", function() 
   local old_init = init
-	init = function()
-		old_init()
-		cybermidi.old_osc_event = osc.event
-		define_osc_event()
-	end
+  init = function()
+    old_init()
+    cybermidi.old_osc_event = osc.event
+    define_osc_event()
+  end
 
 end)
 
